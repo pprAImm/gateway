@@ -1,8 +1,11 @@
-cat > /home/noopi/project/gateway/.gitignore << 'EOF'
-# Environment variables (секреты!)
+# Перезаписываем .gitignore правильной версией
+cat > .gitignore << 'EOF'
+# Environment variables (секреты и конфиги)
 .env
 .env.local
 .env.*.local
+c.env
+*.env
 
 # Binaries (скомпилированные файлы)
 gateway
@@ -11,18 +14,15 @@ gateway
 *.dll
 *.so
 *.dylib
-
-# Test binaries
 *.test
 
-# Output of go coverage
-*.out
+# Go workspace files
+go.work
+go.work.sum
+go.sum
 
 # Dependency directories
 vendor/
-
-# Go workspace file
-go.work
 
 # IDE files
 .idea/
@@ -30,10 +30,11 @@ go.work
 *.swp
 *.swo
 *~
+.DS_Store
 
 # OS files
-.DS_Store
 Thumbs.db
+Desktop.ini
 
 # Logs
 *.log
@@ -42,4 +43,24 @@ logs/
 # Temporary files
 tmp/
 temp/
+*.tmp
+
+# Coverage and test files
+*.out
+*.cov
+coverage.html
+
+# Binary artifacts
+dist/
+bin/
+build/
+
+# Docker files (опционально)
+*.dockerignore
+
+# Local development files
+*.local
+*.secret
 EOF
+
+echo "c.env" >> .gitignore
