@@ -1,0 +1,45 @@
+cat > /home/noopi/project/gateway/.gitignore << 'EOF'
+# Environment variables (секреты!)
+.env
+.env.local
+.env.*.local
+
+# Binaries (скомпилированные файлы)
+gateway
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Output of go coverage
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+EOF
