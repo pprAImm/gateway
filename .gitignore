@@ -1,0 +1,66 @@
+# Перезаписываем .gitignore правильной версией
+cat > .gitignore << 'EOF'
+# Environment variables (секреты и конфиги)
+.env
+.env.local
+.env.*.local
+c.env
+*.env
+
+# Binaries (скомпилированные файлы)
+gateway
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Go workspace files
+go.work
+go.work.sum
+go.sum
+
+# Dependency directories
+vendor/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Coverage and test files
+*.out
+*.cov
+coverage.html
+
+# Binary artifacts
+dist/
+bin/
+build/
+
+# Docker files (опционально)
+*.dockerignore
+
+# Local development files
+*.local
+*.secret
+EOF
+
+echo "c.env" >> .gitignore
