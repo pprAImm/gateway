@@ -88,16 +88,24 @@ func Middleware(secret []byte) func(http.Handler) http.Handler {
 // isPublicRoute определяет, какие пути не требуют авторизации
 func isPublicRoute(path string) bool {
 	publicPaths := []string{
-		"/api/auth/login",
-		"/api/auth/register",
 		"/health",
 		"/ready",
+		"/api/auth/login",
+		"/api/auth/register",
+		"/api/categories",
+		"/api/series",
 	}
-
 	for _, p := range publicPaths {
 		if path == p {
 			return true
 		}
+	}
+	// Проверка на динамические пути: /api/series/123, /api/episodes/456
+	if strings.HasPrefix(path, "/api/series/") && len(strings.Split(path, "/")) == 4 {
+		return true
+	}
+	if strings.HasPrefix(path, "/api/episodes/") && len(strings.Split(path, "/")) == 4 {
+		return true
 	}
 	return false
 }
