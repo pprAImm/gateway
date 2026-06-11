@@ -55,4 +55,4 @@ temp/
 coverage.html
 coverage.out
 
-echo "c.env" >> .gitignore
+echo ".env" >> .gitignore
