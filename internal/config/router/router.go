@@ -1,11 +1,13 @@
 package router
 
 import (
-	"gateway/internal/config"
-	"gateway/internal/config/auth"
-	"gateway/internal/config/middleware"
-	"gateway/internal/config/proxy"
+	"github.com/pprAImm/gateway/internal/config"
+	"github.com/pprAImm/gateway/internal/config/auth"
+	"github.com/pprAImm/gateway/internal/config/middleware"
+
 	"net/http"
+
+	"github.com/pprAImm/gateway/internal/config/proxy"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
