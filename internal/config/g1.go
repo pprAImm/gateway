@@ -38,7 +38,7 @@ func Load() (*Config, error) {
 
 	return &Config{
 		Port:              getEnv("PORT", "8080"),
-		BackendURL:        getEnv("BACKEND_URL", "http://localhost:8081"),
+		BackendURL:        getEnv("BACKEND_URL", "http://localhost:8080"),
 		StreamingURL:      getEnv("STREAMING_URL", "http://localhost:8082"),
 		RedisAddr:         getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:     getEnv("REDIS_PASSWORD", ""),
