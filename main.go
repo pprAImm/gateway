@@ -8,7 +8,6 @@ import (
 
 	"github.com/pprAImm/gateway/internal/config"
 	"github.com/pprAImm/gateway/internal/config/router"
-
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
