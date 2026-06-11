@@ -13,8 +13,8 @@ type Config struct {
 	BackendURL        string
 	RedisAddr         string
 	RedisPassword     string
+	StreamingURL      string
 	RedisDB           int
-	JWTSecret         []byte
 	RateLimitRequests int
 	RateLimitWindow   time.Duration
 	LogLevel          string
@@ -39,10 +39,10 @@ func Load() (*Config, error) {
 	return &Config{
 		Port:              getEnv("PORT", "8080"),
 		BackendURL:        getEnv("BACKEND_URL", "http://localhost:8081"),
+		StreamingURL:      getEnv("STREAMING_URL", "http://localhost:8082"),
 		RedisAddr:         getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:     getEnv("REDIS_PASSWORD", ""),
 		RedisDB:           redisDB,
-		JWTSecret:         []byte(getEnv("JWT_SECRET", "default-secret-key")),
 		RateLimitRequests: rateLimitRequests,
 		RateLimitWindow:   time.Duration(rateLimitWindow) * time.Second,
 		LogLevel:          getEnv("LOG_LEVEL", "info"),

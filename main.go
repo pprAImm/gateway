@@ -1,23 +1,46 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/pprAImm/gateway/internal/config"
 	"github.com/pprAImm/gateway/internal/config/router"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 )
 
 func main() {
+
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("Failed to initialize zap logger: %v", err)
+	}
+	defer logger.Sync()
+
 	// Загружаем конфигурацию
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		logger.Fatal("Failed to load config", zap.Error(err))
 	}
 
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     cfg.RedisAddr,
+		Password: cfg.RedisPassword,
+		DB:       cfg.RedisDB,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		logger.Fatal("Failed to connect to Redis", zap.Error(err))
+	}
+	logger.Info("Connected to Redis", zap.String("addr", cfg.RedisAddr))
+
 	// Создаём роутер
-	r := router.NewRouter(cfg, nil, nil)
+	r := router.NewRouter(cfg, logger, rdb)
 
 	// Настраиваем HTTP сервер
 	server := &http.Server{
@@ -29,12 +52,14 @@ func main() {
 	}
 
 	// Логируем запуск
-	log.Printf("API Gateway starting on port %s", cfg.Port)
-	log.Printf("Backend URL: %s", cfg.BackendURL)
-	log.Printf("Health check: http://localhost:%s/health", cfg.Port)
+	logger.Info("API Gateway starting",
+		zap.String("port", cfg.Port),
+		zap.String("backend_url", cfg.BackendURL),
+		zap.String("streaming_url", cfg.StreamingURL),
+	)
 
 	// Запускаем сервер
 	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("Server failed: %v", err)
+		logger.Fatal("Server failed: %v", zap.Error(err))
 	}
 }
