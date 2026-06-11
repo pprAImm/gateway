@@ -4,7 +4,6 @@ import (
 	"gateway/internal/config"
 	"gateway/internal/config/auth"
 	"gateway/internal/config/middleware"
-
 	"gateway/internal/config/proxy"
 	"net/http"
 
@@ -19,17 +18,16 @@ func NewRouter(cfg *config.Config, log *zap.Logger, rdb *redis.Client) *chi.Mux 
 	r := chi.NewRouter()
 
 	// Глобальные middleware
-	r.Use(chimiddleware.Recoverer)           // Встроенный recovery
-	r.Use(chimiddleware.RealIP)              // Определяем реальный IP
-	r.Use(chimiddleware.CleanPath)           // Очищаем путь
-	r.Use(chimiddleware.StripSlashes)        // Убираем слеши
-	r.Use(middleware.LoggingMiddleware(log)) // Логирование запросов
+	r.Use(chimiddleware.RealIP)               // определение реального IP
+	r.Use(chimiddleware.CleanPath)            // очистка путя
+	r.Use(chimiddleware.StripSlashes)         // убираем слеши
+	r.Use(middleware.RecoveryMiddleware(log)) //восстановление
+	r.Use(middleware.LoggingMiddleware(log))  // логирование запросов
 
 	// Rate limiting (глобальный)
 	r.Use(middleware.RateLimitMiddleware(rdb, cfg.RateLimitRequests, int(cfg.RateLimitWindow.Seconds())))
 
-	// JWT авторизация
-	r.Use(auth.Middleware(cfg.JWTSecret))
+	r.Use(auth.Middleware(rdb))
 
 	backendProxy := proxy.NewReverseProxy(cfg.BackendURL, log)
 	streamingProxy := proxy.NewReverseProxy(cfg.StreamingURL, log)
@@ -53,10 +51,18 @@ func NewRouter(cfg *config.Config, log *zap.Logger, rdb *redis.Client) *chi.Mux 
 
 	// 1. API запросы (core-backend) - категории, сериалы, избранное, пользователи
 	r.HandleFunc("/api/*", func(w http.ResponseWriter, r *http.Request) {
-		log.Debug("Proxying to core-backend",
-			zap.String("path", r.URL.Path),
-			zap.String("method", r.Method),
-		)
+		if userID := r.Header.Get("X-User-Id"); userID != "" {
+			log.Debug("Proxying to core-backend with user_id",
+				zap.String("path", r.URL.Path),
+				zap.String("method", r.Method),
+				zap.String("x-user-id", userID),
+			)
+		} else {
+			log.Debug("Proxying to core-backend (public)",
+				zap.String("path", r.URL.Path),
+				zap.String("method", r.Method),
+			)
+		}
 		backendProxy.ServeHTTP(w, r)
 	})
 
