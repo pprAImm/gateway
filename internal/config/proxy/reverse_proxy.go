@@ -18,11 +18,11 @@ func NewReverseProxy(targetURL string, log *zap.Logger) *httputil.ReverseProxy {
 
 	proxy := httputil.NewSingleHostReverseProxy(parsedURL)
 
-	// Настройка транспорта
 	proxy.Transport = &http.Transport{
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 20,
 		IdleConnTimeout:     90 * time.Second,
+		DisableCompression:  true,
 	}
 
 	// Изменяем ответ перед отправкой клиенту

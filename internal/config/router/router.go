@@ -1,12 +1,13 @@
 package router
 
 import (
-	"gateway/internal/config"
-	"gateway/internal/config/auth"
-	"gateway/internal/config/middleware"
+	"github.com/pprAImm/gateway/internal/config"
+	"github.com/pprAImm/gateway/internal/config/auth"
+	"github.com/pprAImm/gateway/internal/config/middleware"
 
-	"gateway/internal/config/proxy"
 	"net/http"
+
+	"github.com/pprAImm/gateway/internal/config/proxy"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -19,20 +20,19 @@ func NewRouter(cfg *config.Config, log *zap.Logger, rdb *redis.Client) *chi.Mux 
 	r := chi.NewRouter()
 
 	// Глобальные middleware
-	r.Use(chimiddleware.Recoverer)           // Встроенный recovery
-	r.Use(chimiddleware.RealIP)              // Определяем реальный IP
-	r.Use(chimiddleware.CleanPath)           // Очищаем путь
-	r.Use(chimiddleware.StripSlashes)        // Убираем слеши
-	r.Use(middleware.LoggingMiddleware(log)) // Логирование запросов
+	r.Use(chimiddleware.RealIP)               // определение реального IP
+	r.Use(chimiddleware.CleanPath)            // очистка путя
+	r.Use(chimiddleware.StripSlashes)         // убираем слеши
+	r.Use(middleware.RecoveryMiddleware(log)) //восстановление
+	r.Use(middleware.LoggingMiddleware(log))  // логирование запросов
 
 	// Rate limiting (глобальный)
 	r.Use(middleware.RateLimitMiddleware(rdb, cfg.RateLimitRequests, int(cfg.RateLimitWindow.Seconds())))
 
-	// JWT авторизация
-	r.Use(auth.Middleware(cfg.JWTSecret))
+	r.Use(auth.Middleware(rdb))
 
-	// Создаем reverse proxy для бэкенда
 	backendProxy := proxy.NewReverseProxy(cfg.BackendURL, log)
+	streamingProxy := proxy.NewReverseProxy(cfg.StreamingURL, log)
 
 	// Health checks (не проксируются)
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -51,11 +51,34 @@ func NewRouter(cfg *config.Config, log *zap.Logger, rdb *redis.Client) *chi.Mux 
 		w.Write([]byte(`{"status":"ready"}`))
 	})
 
-	// Все API запросы проксируются в бэкенд
+	// 1. API запросы (core-backend) - категории, сериалы, избранное, пользователи
 	r.HandleFunc("/api/*", func(w http.ResponseWriter, r *http.Request) {
-		// Удаляем префикс /api при проксировании (если нужно)
-		// backendProxy.ServeHTTP(w, r) - если бэкенд ожидает /api/*
+		if userID := r.Header.Get("X-User-Id"); userID != "" {
+			log.Debug("Proxying to core-backend with user_id",
+				zap.String("path", r.URL.Path),
+				zap.String("method", r.Method),
+				zap.String("x-user-id", userID),
+			)
+		} else {
+			log.Debug("Proxying to core-backend (public)",
+				zap.String("path", r.URL.Path),
+				zap.String("method", r.Method),
+			)
+		}
 		backendProxy.ServeHTTP(w, r)
+	})
+
+	// 2. Стриминг запросы (streaming-service) - видео, HLS плейлисты
+	r.HandleFunc("/stream/*", func(w http.ResponseWriter, r *http.Request) {
+		log.Debug("Proxying to streaming-service",
+			zap.String("path", r.URL.Path),
+			zap.String("method", r.Method),
+		)
+		streamingProxy.ServeHTTP(w, r)
+	})
+
+	r.HandleFunc("/videos/*", func(w http.ResponseWriter, r *http.Request) {
+		streamingProxy.ServeHTTP(w, r)
 	})
 
 	// Опционально: статика для фронтенда (если фронт через gateway)
