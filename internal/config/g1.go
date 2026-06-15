@@ -37,7 +37,7 @@ func Load() (*Config, error) {
 	rateLimitWindow, _ := strconv.ParseInt(getEnv("RATE_LIMIT_WINDOW", "60"), 10, 64)
 
 	return &Config{
-		Port:              getEnv("PORT", "8080"),
+		Port:              getEnv("PORT", "8081"),
 		BackendURL:        getEnv("BACKEND_URL", "http://localhost:8080"),
 		StreamingURL:      getEnv("STREAMING_URL", "http://localhost:8082"),
 		RedisAddr:         getEnv("REDIS_ADDR", "localhost:6379"),

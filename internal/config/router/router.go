@@ -2,34 +2,31 @@ package router
 
 import (
 	"github.com/pprAImm/gateway/internal/config"
-	"github.com/pprAImm/gateway/internal/config/auth"
 	"github.com/pprAImm/gateway/internal/config/middleware"
 
 	"net/http"
+	"strings"
 
 	"github.com/pprAImm/gateway/internal/config/proxy"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
 // NewRouter создает маршрутизатор API Gateway
-func NewRouter(cfg *config.Config, log *zap.Logger, rdb *redis.Client) *chi.Mux {
+func NewRouter(cfg *config.Config, log *zap.Logger) *chi.Mux {
 	r := chi.NewRouter()
 
 	// Глобальные middleware
-	r.Use(chimiddleware.RealIP)               // определение реального IP
-	r.Use(chimiddleware.CleanPath)            // очистка путя
-	r.Use(chimiddleware.StripSlashes)         // убираем слеши
-	r.Use(middleware.RecoveryMiddleware(log)) //восстановление
-	r.Use(middleware.LoggingMiddleware(log))  // логирование запросов
+	r.Use(chimiddleware.Recoverer)           // Встроенный recovery
+	r.Use(chimiddleware.RealIP)              // Определяем реальный IP
+	r.Use(chimiddleware.CleanPath)           // Очищаем путь
+	r.Use(chimiddleware.StripSlashes)        // Убираем слеши
+	r.Use(middleware.LoggingMiddleware(log)) // Логирование запросов
 
 	// Rate limiting (глобальный)
-	r.Use(middleware.RateLimitMiddleware(rdb, cfg.RateLimitRequests, int(cfg.RateLimitWindow.Seconds())))
-
-	r.Use(auth.Middleware(rdb))
+	r.Use(middleware.RateLimitMiddleware(cfg.RateLimitRequests, int(cfg.RateLimitWindow.Seconds())))
 
 	backendProxy := proxy.NewReverseProxy(cfg.BackendURL, log)
 	streamingProxy := proxy.NewReverseProxy(cfg.StreamingURL, log)
@@ -41,31 +38,30 @@ func NewRouter(cfg *config.Config, log *zap.Logger, rdb *redis.Client) *chi.Mux 
 	})
 
 	r.Get("/ready", func(w http.ResponseWriter, r *http.Request) {
-		// Проверяем подключение к Redis и бэкенду
-		if err := rdb.Ping(r.Context()).Err(); err != nil {
-			log.Error("Redis not ready", zap.Error(err))
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ready"}`))
 	})
 
 	// 1. API запросы (core-backend) - категории, сериалы, избранное, пользователи
 	r.HandleFunc("/api/*", func(w http.ResponseWriter, r *http.Request) {
-		if userID := r.Header.Get("X-User-Id"); userID != "" {
+		// Strip the /api prefix before proxying to backend
+		origPath := r.URL.Path
+		r2 := r.Clone(r.Context())
+		r2.URL.Path = strings.TrimPrefix(origPath, "/api")
+
+		if userID := r2.Header.Get("X-User-Id"); userID != "" {
 			log.Debug("Proxying to core-backend with user_id",
-				zap.String("path", r.URL.Path),
-				zap.String("method", r.Method),
+				zap.String("path", r2.URL.Path),
+				zap.String("method", r2.Method),
 				zap.String("x-user-id", userID),
 			)
 		} else {
 			log.Debug("Proxying to core-backend (public)",
-				zap.String("path", r.URL.Path),
-				zap.String("method", r.Method),
+				zap.String("path", r2.URL.Path),
+				zap.String("method", r2.Method),
 			)
 		}
-		backendProxy.ServeHTTP(w, r)
+		backendProxy.ServeHTTP(w, r2)
 	})
 
 	// 2. Стриминг запросы (streaming-service) - видео, HLS плейлисты
