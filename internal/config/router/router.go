@@ -25,6 +25,9 @@ func NewRouter(cfg *config.Config, log *zap.Logger) *chi.Mux {
 	r.Use(chimiddleware.StripSlashes)        // Убираем слеши
 	r.Use(middleware.LoggingMiddleware(log)) // Логирование запросов
 
+	// CORS — разрешаем запросы с любых источников (фронтенд на любом порту/домене)
+	r.Use(corsMiddleware)
+
 	// Rate limiting (глобальный)
 	r.Use(middleware.RateLimitMiddleware(cfg.RateLimitRequests, int(cfg.RateLimitWindow.Seconds())))
 
@@ -86,4 +89,22 @@ func NewRouter(cfg *config.Config, log *zap.Logger) *chi.Mux {
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 
 	return r
+}
+
+// corsMiddleware разрешает CORS-запросы с любого источника
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-User-Id")
+		}
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
