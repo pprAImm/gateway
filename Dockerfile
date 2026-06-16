@@ -17,11 +17,10 @@ FROM alpine:latest
 
 WORKDIR /app
 
-# Копируем бинарник из builder
 COPY --from=builder /app/gateway .
 
-# Открываем порт
-EXPOSE 8080
+RUN apk add --no-cache ca-certificates
 
-# Запускаем
+EXPOSE 8081
+
 CMD ["./gateway"]
