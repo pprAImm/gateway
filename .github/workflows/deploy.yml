@@ -49,6 +49,10 @@ jobs:
               --name gateway \
               --restart always \
               -p 8081:8081 \
+              -e PORT=8081 \
+              -e BACKEND_URL=http://host.docker.internal:8080 \
+              -e STREAMING_URL=http://host.docker.internal:8082 \
+              --add-host host.docker.internal:host-gateway \
               --env-file /root/.env \
               ghcr.io/ppraimm/gateway:latest
             docker image prune -f
