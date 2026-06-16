@@ -21,6 +21,7 @@ jobs:
         with:
           repository: pprAImm/frontend
           path: frontend
+          ref: feature/frntend-setup  # TODO: switch to main after PR is merged
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
