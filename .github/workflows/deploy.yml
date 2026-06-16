@@ -2,7 +2,7 @@ name: Deploy Gateway
 
 on:
   push:
-    branches: [main, feature/gateway1, feature/gateway, feature/gateway-setup]
+    branches: [main, feature/gateway2, feature/gateway, feature/gateway1, feature/gateway-setup]
   workflow_dispatch:
 
 jobs:
