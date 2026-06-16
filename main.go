@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-
+	// Инициализация логгера
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatalf("Failed to initialize zap logger: %v", err)
@@ -24,7 +24,7 @@ func main() {
 		logger.Fatal("Failed to load config", zap.Error(err))
 	}
 
-	// Создаём роутер без Redis-зависимости
+	// Создаём роутер с поддержкой прокси и статики
 	r := router.NewRouter(cfg, logger)
 
 	// Настраиваем HTTP сервер
@@ -45,6 +45,6 @@ func main() {
 
 	// Запускаем сервер
 	if err := server.ListenAndServe(); err != nil {
-		logger.Fatal("Server failed: %v", zap.Error(err))
+		logger.Fatal("Server failed", zap.Error(err))
 	}
 }
