@@ -27,13 +27,13 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/pprAImm/gateway:latest
+          tags: ghcr.io/ppraimm/gateway:latest
 
       - name: Deploy on server
         run: |
           ssh -o StrictHostKeyChecking=no root@185.23.34.25 << 'EOF'
             docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GHCR_TOKEN }}
-            docker pull ghcr.io/pprAImm/gateway:latest
+            docker pull ghcr.io/ppraimm/gateway:latest
             docker stop gateway || true
             docker rm gateway || true
             docker run -d \
@@ -41,6 +41,6 @@ jobs:
               --restart always \
               -p 8081:8081 \
               --env-file /root/.env \
-              ghcr.io/pprAImm/gateway:latest
+              ghcr.io/ppraimm/gateway:latest
             docker image prune -f
           EOF
