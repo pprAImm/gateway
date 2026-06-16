@@ -55,4 +55,5 @@ temp/
 coverage.html
 coverage.out
 
-echo ".env" >> .gitignore
+# Backups
+*.bak

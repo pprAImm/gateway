@@ -38,7 +38,7 @@ jobs:
             docker run -d \
               --name gateway \
               --restart always \
-              -p 80:8080 \
+              -p 8081:8081 \
               --env-file /root/.env \
               gateway:latest
             rm -f /root/gateway.tar
