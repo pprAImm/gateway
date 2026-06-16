@@ -77,7 +77,12 @@ func NewRouter(cfg *config.Config, log *zap.Logger) *chi.Mux {
 		streamingProxy.ServeHTTP(w, r)
 	})
 
-	// Опционально: статика для фронтенда (если фронт через gateway)
+	// 3. Загрузка видео (streaming-service)
+	r.HandleFunc("/upload", func(w http.ResponseWriter, r *http.Request) {
+		streamingProxy.ServeHTTP(w, r)
+	})
+
+	// 4. Статика для фронтенда (если фронт через gateway)
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 
 	return r
