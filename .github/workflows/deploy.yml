@@ -1,0 +1,45 @@
+name: Deploy Gateway
+
+on:
+  push:
+    branches: [main, feature/gateway2, feature/gateway, feature/gateway1, feature/gateway-setup]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Build Docker image
+        run: docker build -t gateway:latest .
+
+      - name: Save Docker image
+        run: docker save gateway:latest -o gateway.tar
+
+      - name: Copy to server
+        run: scp -o StrictHostKeyChecking=no gateway.tar root@185.23.34.25:/root/
+
+      - name: Deploy on server
+        run: |
+          ssh -o StrictHostKeyChecking=no root@185.23.34.25 << 'EOF'
+            docker load -i /root/gateway.tar
+            docker stop gateway || true
+            docker rm gateway || true
+            docker run -d \
+              --name gateway \
+              --restart always \
+              -p 80:8080 \
+              --env-file /root/.env \
+              gateway:latest
+            rm -f /root/gateway.tar
+          EOF

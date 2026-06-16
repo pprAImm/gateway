@@ -1,19 +1,17 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/pprAImm/gateway/internal/config"
 	"github.com/pprAImm/gateway/internal/config/router"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
 func main() {
-
+	// Инициализация логгера
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatalf("Failed to initialize zap logger: %v", err)
@@ -26,21 +24,8 @@ func main() {
 		logger.Fatal("Failed to load config", zap.Error(err))
 	}
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     cfg.RedisAddr,
-		Password: cfg.RedisPassword,
-		DB:       cfg.RedisDB,
-	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := rdb.Ping(ctx).Err(); err != nil {
-		logger.Fatal("Failed to connect to Redis", zap.Error(err))
-	}
-	logger.Info("Connected to Redis", zap.String("addr", cfg.RedisAddr))
-
-	// Создаём роутер
-	r := router.NewRouter(cfg, logger, rdb)
+	// Создаём роутер с поддержкой прокси и статики
+	r := router.NewRouter(cfg, logger)
 
 	// Настраиваем HTTP сервер
 	server := &http.Server{
@@ -60,6 +45,6 @@ func main() {
 
 	// Запускаем сервер
 	if err := server.ListenAndServe(); err != nil {
-		logger.Fatal("Server failed: %v", zap.Error(err))
+		logger.Fatal("Server failed", zap.Error(err))
 	}
 }
