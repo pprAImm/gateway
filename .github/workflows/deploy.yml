@@ -13,8 +13,14 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout gateway
         uses: actions/checkout@v4
+
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+        with:
+          repository: pprAImm/frontend
+          path: frontend
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

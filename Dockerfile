@@ -18,6 +18,7 @@ FROM alpine:latest
 WORKDIR /app
 
 COPY --from=builder /app/gateway .
+COPY frontend /app/frontend
 
 RUN apk add --no-cache ca-certificates
 

@@ -85,8 +85,16 @@ func NewRouter(cfg *config.Config, log *zap.Logger) *chi.Mux {
 		streamingProxy.ServeHTTP(w, r)
 	})
 
-	// 4. Статика для фронтенда (если фронт через gateway)
+	// 4. Статика фронтенда — раздаём через gateway (всё на одном порту, без CORS)
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+
+	// Корень → центральная страница
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./frontend/central.html")
+	})
+
+	// Все остальные пути — отдача фронтенда
+	r.NotFound(http.FileServer(http.Dir("./frontend")).ServeHTTP)
 
 	return r
 }
