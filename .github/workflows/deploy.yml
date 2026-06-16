@@ -45,6 +45,10 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
+      - name: Copy Caddyfile to server
+        run: |
+          scp -o StrictHostKeyChecking=no Caddyfile root@185.23.34.25:/root/Caddyfile
+
       - name: Deploy on server
         run: |
           ssh -o StrictHostKeyChecking=no root@185.23.34.25 << 'EOF'
@@ -62,5 +66,21 @@ jobs:
               --add-host host.docker.internal:host-gateway \
               --env-file /root/.env \
               ghcr.io/ppraimm/gateway:latest
+
+            # Caddy — HTTPS reverse proxy (Let's Encrypt auto)
+            mkdir -p /root/caddy_data /root/caddy_config
+            docker stop caddy || true
+            docker rm caddy || true
+            docker run -d \
+              --name caddy \
+              --restart always \
+              -p 80:80 \
+              -p 443:443 \
+              -v /root/Caddyfile:/etc/caddy/Caddyfile \
+              -v /root/caddy_data:/data \
+              -v /root/caddy_config:/config \
+              --add-host host.docker.internal:host-gateway \
+              caddy:2
+
             docker image prune -f
           EOF

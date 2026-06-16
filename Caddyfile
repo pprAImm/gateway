@@ -1,0 +1,8 @@
+team5.verstack.ru {
+    reverse_proxy host.docker.internal:8081
+}
+
+# Redirect www to non-www
+www.team5.verstack.ru {
+    redir https://team5.verstack.ru{uri} permanent
+}
