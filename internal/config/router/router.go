@@ -85,7 +85,16 @@ func NewRouter(cfg *config.Config, log *zap.Logger) *chi.Mux {
 		streamingProxy.ServeHTTP(w, r)
 	})
 
-	// 4. Статика фронтенда — раздаём через gateway (всё на одном порту, без CORS)
+	// 4. Загруженные файлы (обложки) — прокси в core-backend без изменения пути
+	r.HandleFunc("/uploads/*", func(w http.ResponseWriter, r *http.Request) {
+		log.Debug("Proxying to core-backend for uploads",
+			zap.String("path", r.URL.Path),
+			zap.String("method", r.Method),
+		)
+		backendProxy.ServeHTTP(w, r)
+	})
+
+	// 5. Статика фронтенда — раздаём через gateway (всё на одном порту, без CORS)
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 
 	// Корень → центральная страница
