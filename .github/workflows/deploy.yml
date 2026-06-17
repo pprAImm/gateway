@@ -21,7 +21,7 @@ jobs:
         with:
           repository: pprAImm/frontend
           path: frontend
-          ref: fix/profile-player  # TODO: switch to main after PR is merged
+          ref: main
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
