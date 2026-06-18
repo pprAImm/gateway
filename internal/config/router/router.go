@@ -97,6 +97,11 @@ func NewRouter(cfg *config.Config, log *zap.Logger) *chi.Mux {
 	// 5. Статика фронтенда — раздаём через gateway (всё на одном порту, без CORS)
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 
+	// Страница подтверждения email
+	r.Get("/verify", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./frontend/verify.html")
+	})
+
 	// Корень → центральная страница
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./frontend/central.html")
