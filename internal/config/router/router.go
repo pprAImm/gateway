@@ -6,6 +6,7 @@ import (
 
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/pprAImm/gateway/internal/config/proxy"
 
@@ -45,70 +46,76 @@ func NewRouter(cfg *config.Config, log *zap.Logger) *chi.Mux {
 		w.Write([]byte(`{"status":"ready"}`))
 	})
 
-	// 1. API запросы (core-backend) - категории, сериалы, избранное, пользователи
-	r.HandleFunc("/api/*", func(w http.ResponseWriter, r *http.Request) {
-		// Strip the /api prefix before proxying to backend
-		origPath := r.URL.Path
-		r2 := r.Clone(r.Context())
-		r2.URL.Path = strings.TrimPrefix(origPath, "/api")
+	// Все руты, кроме /upload, обёрнуты в таймаут 30 секунд.
+	// /upload исключён — транскодинг видео может занимать минуты.
+	r.Group(func(r chi.Router) {
+		r.Use(chimiddleware.Timeout(30 * time.Second))
 
-		if userID := r2.Header.Get("X-User-Id"); userID != "" {
-			log.Debug("Proxying to core-backend with user_id",
-				zap.String("path", r2.URL.Path),
-				zap.String("method", r2.Method),
-				zap.String("x-user-id", userID),
+		// 1. API запросы (core-backend) - категории, сериалы, избранное, пользователи
+		r.HandleFunc("/api/*", func(w http.ResponseWriter, r *http.Request) {
+			// Strip the /api prefix before proxying to backend
+			origPath := r.URL.Path
+			r2 := r.Clone(r.Context())
+			r2.URL.Path = strings.TrimPrefix(origPath, "/api")
+
+			if userID := r2.Header.Get("X-User-Id"); userID != "" {
+				log.Debug("Proxying to core-backend with user_id",
+					zap.String("path", r2.URL.Path),
+					zap.String("method", r2.Method),
+					zap.String("x-user-id", userID),
+				)
+			} else {
+				log.Debug("Proxying to core-backend (public)",
+					zap.String("path", r2.URL.Path),
+					zap.String("method", r2.Method),
+				)
+			}
+			backendProxy.ServeHTTP(w, r2)
+		})
+
+		// 2. Стриминг запросы (streaming-service) - видео, HLS плейлисты
+		r.HandleFunc("/stream/*", func(w http.ResponseWriter, r *http.Request) {
+			log.Debug("Proxying to streaming-service",
+				zap.String("path", r.URL.Path),
+				zap.String("method", r.Method),
 			)
-		} else {
-			log.Debug("Proxying to core-backend (public)",
-				zap.String("path", r2.URL.Path),
-				zap.String("method", r2.Method),
+			streamingProxy.ServeHTTP(w, r)
+		})
+
+		r.HandleFunc("/videos/*", func(w http.ResponseWriter, r *http.Request) {
+			streamingProxy.ServeHTTP(w, r)
+		})
+
+		// 4. Загруженные файлы (обложки) — прокси в core-backend без изменения пути
+		r.HandleFunc("/uploads/*", func(w http.ResponseWriter, r *http.Request) {
+			log.Debug("Proxying to core-backend for uploads",
+				zap.String("path", r.URL.Path),
+				zap.String("method", r.Method),
 			)
-		}
-		backendProxy.ServeHTTP(w, r2)
+			backendProxy.ServeHTTP(w, r)
+		})
+
+		// 5. Статика фронтенда — раздаём через gateway (всё на одном порту, без CORS)
+		r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+
+		// Страница подтверждения email
+		r.Get("/verify", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "./frontend/verify.html")
+		})
+
+		// Корень → центральная страница
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "./frontend/central.html")
+		})
+
+		// Все остальные пути — отдача фронтенда
+		r.NotFound(http.FileServer(http.Dir("./frontend")).ServeHTTP)
 	})
 
-	// 2. Стриминг запросы (streaming-service) - видео, HLS плейлисты
-	r.HandleFunc("/stream/*", func(w http.ResponseWriter, r *http.Request) {
-		log.Debug("Proxying to streaming-service",
-			zap.String("path", r.URL.Path),
-			zap.String("method", r.Method),
-		)
-		streamingProxy.ServeHTTP(w, r)
-	})
-
-	r.HandleFunc("/videos/*", func(w http.ResponseWriter, r *http.Request) {
-		streamingProxy.ServeHTTP(w, r)
-	})
-
-	// 3. Загрузка видео (streaming-service)
+	// 3. Загрузка видео (streaming-service) — БЕЗ таймаута
 	r.HandleFunc("/upload", func(w http.ResponseWriter, r *http.Request) {
 		streamingProxy.ServeHTTP(w, r)
 	})
-
-	// 4. Загруженные файлы (обложки) — прокси в core-backend без изменения пути
-	r.HandleFunc("/uploads/*", func(w http.ResponseWriter, r *http.Request) {
-		log.Debug("Proxying to core-backend for uploads",
-			zap.String("path", r.URL.Path),
-			zap.String("method", r.Method),
-		)
-		backendProxy.ServeHTTP(w, r)
-	})
-
-	// 5. Статика фронтенда — раздаём через gateway (всё на одном порту, без CORS)
-	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
-
-	// Страница подтверждения email
-	r.Get("/verify", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./frontend/verify.html")
-	})
-
-	// Корень → центральная страница
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./frontend/central.html")
-	})
-
-	// Все остальные пути — отдача фронтенда
-	r.NotFound(http.FileServer(http.Dir("./frontend")).ServeHTTP)
 
 	return r
 }
