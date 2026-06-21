@@ -28,14 +28,16 @@ func main() {
 	r := router.NewRouter(cfg, logger)
 
 	// Настраиваем HTTP сервер
-	// WriteTimeout не задан — upload handler требует неограниченного времени
-	// для транскодинга видео (может занимать минуты). Для остальных рутов
-	// таймаут задаётся через middleware в router.go.
+	// ReadTimeout не задан — upload handler требует неограниченного времени
+	// на чтение тела POST с видеофайлом и на ожидание ответа от streaming-service
+	// (транскодинг может занимать минуты).
+	// ReadHeaderTimeout: 10s — защита от slowloris (клиент должен прислать заголовки за 10с).
+	// WriteTimeout не задан — ответ от бэкенда может идти долго.
 	server := &http.Server{
-		Addr:        ":" + cfg.Port,
-		Handler:     r,
-		ReadTimeout: 30 * time.Second,
-		IdleTimeout: 120 * time.Second,
+		Addr:              ":" + cfg.Port,
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	// Логируем запуск
