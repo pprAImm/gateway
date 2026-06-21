@@ -19,10 +19,12 @@ func NewReverseProxy(targetURL string, log *zap.Logger) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(parsedURL)
 
 	proxy.Transport = &http.Transport{
-		MaxIdleConns:        100,
-		MaxIdleConnsPerHost: 20,
-		IdleConnTimeout:     90 * time.Second,
-		DisableCompression:  true,
+		MaxIdleConns:            100,
+		MaxIdleConnsPerHost:     20,
+		IdleConnTimeout:         90 * time.Second,
+		DisableCompression:      true,
+		ResponseHeaderTimeout:   0, // не ограничиваем — streaming-service может транскодировать минуты
+		ExpectContinueTimeout:   0, // не ждём 100-continue
 	}
 
 	// Изменяем ответ перед отправкой клиенту
